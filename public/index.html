@@ -1,59 +1,88 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>99 Card Game</title>
+    <title>99 Game</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
-        body { font-family: sans-serif; text-align: center; background: #f0f2f5; }
-        .card-btn { padding: 15px; margin: 5px; font-size: 18px; cursor: pointer; border-radius: 8px; border: none; background: #007bff; color: white; }
-        .danger { background: #dc3545; }
-        #status-box { background: white; padding: 20px; border-radius: 15px; display: inline-block; margin-top: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        body { font-family: sans-serif; text-align: center; background: #1b5e20; color: white; margin: 0; }
+        #login { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #1b5e20; z-index: 10; padding-top: 50px; }
+        .card { display: inline-block; width: 60px; height: 90px; background: white; color: black; border-radius: 5px; margin: 5px; line-height: 90px; font-size: 20px; cursor: pointer; }
+        .player-tag { padding: 10px; margin: 5px; display: inline-block; border: 1px solid white; border-radius: 5px; }
+        .active-turn { background: gold; color: black; font-weight: bold; }
+        .btn { padding: 15px 30px; margin: 10px; font-size: 18px; cursor: pointer; }
     </style>
 </head>
 <body>
-    <div id="status-box">
-        <h1>Total: <span id="total">0</span></h1>
-        <h3 id="turn-info">Turn: Aleigha</h3>
-        <div id="controls">
-            <button class="card-btn" onclick="play(1)">+1</button>
-            <button class="card-btn" onclick="play(10)">+10</button>
-            <button class="card-btn" onclick="play(-10)">-10</button>
-            <button class="card-btn" onclick="play(4)">4 (Reverse)</button>
-            <button class="card-btn" onclick="play(99)">King (99)</button>
-            <button class="card-btn" onclick="play(0)">9 (Pass)</button>
-        </div>
-        <button class="card-btn danger" onclick="resetGame()" style="margin-top:20px;">Reset Season</button>
-    </div>
 
-    <script>
-        async function updateUI() {
-            const res = await fetch('/status');
-            const data = await res.json();
-            document.getElementById('total').innerText = data.currentTotal;
-            document.getElementById('turn-info').innerText = data.gameOver 
-                ? `GAME OVER! ${data.players[data.currentIndex]} lost!` 
-                : `Turn: ${data.players[data.currentIndex]}`;
-            
-            if(data.currentTotal > 90) document.getElementById('total').style.color = 'red';
-            else document.getElementById('total').style.color = 'black';
-        }
+<div id="login">
+    <h1>Who is playing?</h1>
+    <button class="btn" onclick="login('Aleigha')">Aleigha</button><br>
+    <button class="btn" onclick="login('Mommy')">Mommy</button><br>
+    <button class="btn" onclick="login('Daddy')">Daddy</button>
+</div>
 
-        async function play(val) {
-            await fetch('/play', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ value: val })
-            });
-            updateUI();
-        }
+<div id="game-ui" style="display:none;">
+    <h1 id="total-display" style="font-size: 80px; margin: 10px;">0</h1>
+    <h2 id="turn-msg">Waiting...</h2>
+    <div id="players"></div>
+    <hr>
+    <h3>Your Hand (<span id="my-name"></span>)</h3>
+    <div id="my-hand"></div>
+    <br>
+    <button onclick="resetGame()">New Round</button>
+</div>
 
-        async function resetGame() {
-            await fetch('/reset', { method: 'POST' });
-            updateUI();
-        }
+<script>
+    let myName = "";
 
-        setInterval(updateUI, 2000); // Auto-refresh every 2 seconds
+    function login(name) {
+        myName = name;
+        document.getElementById('login').style.display = 'none';
+        document.getElementById('game-ui').style.display = 'block';
+        document.getElementById('my-name').innerText = name;
         updateUI();
-    </script>
+    }
+
+    async function updateUI() {
+        if (!myName) return;
+        const res = await fetch(`/status?user=${myName}`);
+        const data = await res.json();
+        
+        document.getElementById('total-display').innerText = data.currentTotal;
+        const current = data.players[data.currentIndex];
+        
+        document.getElementById('turn-msg').innerText = data.gameOver 
+            ? "Game Over!" 
+            : (current.name === myName ? "YOUR TURN!" : `${current.name}'s Turn`);
+
+        document.getElementById('players').innerHTML = data.players.map((p, i) => `
+            <div class="player-tag ${i === data.currentIndex ? 'active-turn' : ''}">
+                ${p.name} ${!p.active ? '(OUT)' : ''}
+            </div>
+        `).join('');
+
+        // Only show cards if it's your turn and you are active
+        const me = data.players.find(p => p.name === myName);
+        document.getElementById('my-hand').innerHTML = me.hand.map((c, i) => `
+            <div class="card" onclick="play(${i})">${c.display || '?'}</div>
+        `).join('');
+    }
+
+    async function play(index) {
+        await fetch('/play', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ cardIndex: index, userName: myName })
+        });
+        updateUI();
+    }
+
+    async function resetGame() {
+        await fetch('/reset', { method: 'POST' });
+        updateUI();
+    }
+
+    setInterval(updateUI, 2000);
+</script>
 </body>
 </html>
