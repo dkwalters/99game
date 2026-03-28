@@ -1,56 +1,100 @@
 const express = require('express');
-const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(express.static('public'));
 app.use(express.json());
 
+// Game State
 let gameData = {
     currentTotal: 0,
-    currentIndex: 0, 
+    currentIndex: 0,
     direction: 1,
-    players: ["Aleigha", "Mommy", "Daddy"],
+    deck: [],
+    players: [
+        { name: "Aleigha", hand: [], active: true },
+        { name: "Mommy", hand: [], active: true },
+        { name: "Daddy", hand: [], active: true }
+    ],
     gameOver: false
 };
 
-// Get current game status
-app.get('/status', (req, res) => {
-    res.json(gameData);
-});
+// Create and Shuffle Deck
+function createDeck() {
+    const suits = ['♠', '♣', '♥', '♦'];
+    const values = [
+        { n: 'A', v: 1 }, { n: '2', v: 2 }, { n: '3', v: 3 }, { n: '4', v: 0 }, // 4 is Reverse
+        { n: '5', v: 5 }, { n: '6', v: 6 }, { n: '7', v: 7 }, { n: '8', v: 8 },
+        { n: '9', v: 0 }, { n: '10', v: -10 }, { n: 'J', v: 10 }, { n: 'Q', v: 10 }, { n: 'K', v: 99 }
+    ];
+    let deck = [];
+    for (let s of suits) {
+        for (let v of values) {
+            deck.push({ display: v.n + s, value: v.v, name: v.n });
+        }
+    }
+    return deck.sort(() => Math.random() - 0.5);
+}
 
-// Play a card
+function startNewRound() {
+    gameData.deck = createDeck();
+    gameData.currentTotal = 0;
+    gameData.gameOver = false;
+    gameData.players.forEach(p => {
+        if (p.active) p.hand = [gameData.deck.pop(), gameData.deck.pop(), gameData.deck.pop()];
+    });
+}
+
+// Initial Deal
+startNewRound();
+
+app.get('/status', (req, res) => res.json(gameData));
+
 app.post('/play', (req, res) => {
-    const { value } = req.body;
+    const { cardIndex } = req.body;
+    let player = gameData.players[gameData.currentIndex];
+
+    if (!player.active || gameData.gameOver) return res.status(400).send();
+
+    const card = player.hand[cardIndex];
     
-    if (gameData.gameOver) return res.status(400).json({ error: "Game is over!" });
-
-    // Card Logic
-    if (value === 4) {
-        gameData.direction *= -1; // Reverse
-    } else if (value === 99) {
-        gameData.currentTotal = 99; // King sets to 99
+    // Logic for Special Cards
+    if (card.name === '4') {
+        gameData.direction *= -1;
+    } else if (card.name === 'K') {
+        gameData.currentTotal = 99;
     } else {
-        gameData.currentTotal += value;
+        gameData.currentTotal += card.value;
     }
 
-    // Win/Loss Check
+    // Check if player "Goes Out"
     if (gameData.currentTotal > 99) {
-        gameData.gameOver = true;
+        player.active = false;
+        const activePlayers = gameData.players.filter(p => p.active);
+        if (activePlayers.length <= 1) {
+            gameData.gameOver = true;
+        } else {
+            // Find next active player
+            moveToNext();
+        }
     } else {
-        // Move to next player
-        gameData.currentIndex = (gameData.currentIndex + gameData.direction + gameData.players.length) % gameData.players.length;
+        // Draw a new card and move turn
+        player.hand[cardIndex] = gameData.deck.pop() || { display: "Empty", value: 0 };
+        moveToNext();
     }
-
     res.json(gameData);
 });
 
-// Reset Game
+function moveToNext() {
+    do {
+        gameData.currentIndex = (gameData.currentIndex + gameData.direction + gameData.players.length) % gameData.players.length;
+    } while (!gameData.players[gameData.currentIndex].active && !gameData.gameOver);
+}
+
 app.post('/reset', (req, res) => {
-    gameData = { currentTotal: 0, currentIndex: 0, direction: 1, players: ["Aleigha", "Mommy", "Daddy"], gameOver: false };
+    gameData.players.forEach(p => p.active = true);
+    startNewRound();
     res.json(gameData);
 });
 
-app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-});
+app.listen(PORT, () => console.log(`99 Game on port ${PORT}`));
