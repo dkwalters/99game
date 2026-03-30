@@ -11,6 +11,7 @@ let gameData = {
     currentIndex: 0,
     direction: 1,
     deck: [],
+    lastCard: null, // Track the last played card
     players: [
         { name: "Aleigha", hand: [], active: true, tokens: 3 },
         { name: "Mommy", hand: [], active: true, tokens: 3 },
@@ -29,7 +30,7 @@ function createDeck() {
     let deck = [];
     for(let s of suits) {
         for(let v of values) {
-            deck.push({display: v.n + s, value: v.v, name: v.n});
+            deck.push({display: v.n + s, value: v.v, name: v.n, suit: s});
         }
     }
     return deck.sort(() => Math.random() - 0.5);
@@ -40,6 +41,7 @@ function startNewRound() {
     gameData.currentTotal = 0;
     gameData.roundOver = false;
     gameData.direction = 1;
+    gameData.lastCard = null; 
     gameData.players.forEach(p => {
         if (p.tokens > 0) {
             p.active = true;
@@ -49,7 +51,6 @@ function startNewRound() {
             p.hand = [];
         }
     });
-    // Ensure turn starts on an active player
     while (!gameData.players[gameData.currentIndex].active) {
         gameData.currentIndex = (gameData.currentIndex + 1) % gameData.players.length;
     }
@@ -75,9 +76,12 @@ app.post('/play', (req, res) => {
     const card = player.hand[cardIndex];
     let nextTotal = gameData.currentTotal;
 
-    // Card Logic
+    // Save this as the last card played
+    gameData.lastCard = { ...card, playedBy: userName };
+
     if (card.name === 'A') {
         nextTotal += (aceValue === 11) ? 11 : 1;
+        gameData.lastCard.display = (aceValue === 11) ? "11" + card.suit : "1" + card.suit;
     } else if (card.name === '4') {
         gameData.direction *= -1;
     } else if (card.name === 'K') {
@@ -86,7 +90,6 @@ app.post('/play', (req, res) => {
         nextTotal += card.value;
     }
 
-    // 99 Cap & Token Check
     if (nextTotal > 99) {
         player.tokens -= 1;
         player.active = false;
