@@ -133,5 +133,8 @@ app.post('/new-season', (req, res) => {
     startNewRound();
     res.sendStatus(200);
 });
-
+// Manual override to force the icon to load
+app.get('/icon.png', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'icon.png'));
+});
 app.listen(PORT, () => console.log(`99 Game Server started on port ${PORT}`));
