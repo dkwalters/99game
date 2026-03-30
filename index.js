@@ -11,7 +11,7 @@ let gameData = {
     currentIndex: 0,
     direction: 1,
     deck: [],
-    lastCard: null, // Track the last played card
+    lastCard: null,
     players: [
         { name: "Aleigha", hand: [], active: true, tokens: 3 },
         { name: "Mommy", hand: [], active: true, tokens: 3 },
@@ -20,6 +20,7 @@ let gameData = {
     roundOver: false
 };
 
+// Standard Fisher-Yates Shuffle for maximum randomness
 function createDeck() {
     const suits = ['♠', '♣', '♥', '♦'];
     const values = [
@@ -33,7 +34,12 @@ function createDeck() {
             deck.push({display: v.n + s, value: v.v, name: v.n, suit: s});
         }
     }
-    return deck.sort(() => Math.random() - 0.5);
+    // Shuffle logic
+    for (let i = deck.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [deck[i], deck[j]] = [deck[j], deck[i]];
+    }
+    return deck;
 }
 
 function startNewRound() {
@@ -45,12 +51,14 @@ function startNewRound() {
     gameData.players.forEach(p => {
         if (p.tokens > 0) {
             p.active = true;
+            // Deal 3 cards
             p.hand = [gameData.deck.pop(), gameData.deck.pop(), gameData.deck.pop()];
         } else {
             p.active = false;
             p.hand = [];
         }
     });
+    // Find first player with tokens to start
     while (!gameData.players[gameData.currentIndex].active) {
         gameData.currentIndex = (gameData.currentIndex + 1) % gameData.players.length;
     }
@@ -76,12 +84,14 @@ app.post('/play', (req, res) => {
     const card = player.hand[cardIndex];
     let nextTotal = gameData.currentTotal;
 
-    // Save this as the last card played
+    // Set the "History" card data
     gameData.lastCard = { ...card, playedBy: userName };
 
+    // Card Mechanics
     if (card.name === 'A') {
-        nextTotal += (aceValue === 11) ? 11 : 1;
-        gameData.lastCard.display = (aceValue === 11) ? "11" + card.suit : "1" + card.suit;
+        const val = parseInt(aceValue) || 1;
+        nextTotal += val;
+        gameData.lastCard.display = val + card.suit;
     } else if (card.name === '4') {
         gameData.direction *= -1;
     } else if (card.name === 'K') {
@@ -90,6 +100,7 @@ app.post('/play', (req, res) => {
         nextTotal += card.value;
     }
 
+    // Bust Check (Cap at 99)
     if (nextTotal > 99) {
         player.tokens -= 1;
         player.active = false;
@@ -98,7 +109,13 @@ app.post('/play', (req, res) => {
         else moveNext();
     } else {
         gameData.currentTotal = nextTotal;
-        player.hand[cardIndex] = gameData.deck.pop() || {display: "X", value: 0};
+        
+        // --- INFINITE DECK SAFETY ---
+        if (gameData.deck.length === 0) {
+            gameData.deck = createDeck();
+        }
+        
+        player.hand[cardIndex] = gameData.deck.pop();
         moveNext();
     }
     res.json(gameData);
@@ -117,4 +134,4 @@ app.post('/new-season', (req, res) => {
     res.sendStatus(200);
 });
 
-app.listen(PORT, () => console.log(`99 Server running on ${PORT}`));
+app.listen(PORT, () => console.log(`99 Game Server started on port ${PORT}`));
