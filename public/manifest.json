@@ -1,0 +1,15 @@
+{
+  "name": "99 Card Game",
+  "short_name": "99",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1b5e20",
+  "theme_color": "#1b5e20",
+  "icons": [
+    {
+      "src": "/icon.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
