@@ -3,38 +3,34 @@
 <head>
     <title>99 Game</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    
     <link rel="apple-touch-icon" href="/icon.png">
-    
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#1b5e20">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-
     <style>
         body { font-family: 'Segoe UI', sans-serif; text-align: center; background: #1b5e20; color: white; margin: 0; }
         #login { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #1b5e20; z-index: 200; padding-top: 50px; }
         #display-area { display: flex; align-items: center; justify-content: center; margin: 20px 0; gap: 20px; }
-        .card { display: inline-block; width: 65px; height: 95px; background: white; color: black; border-radius: 8px; margin: 5px; line-height: 95px; font-size: 22px; font-weight: bold; box-shadow: 2px 2px 5px rgba(0,0,0,0.4); cursor: pointer; }
+        .card { display: inline-block; width: 65px; height: 95px; background: white; color: black; border-radius: 8px; margin: 5px; line-height: 95px; font-size: 22px; font-weight: bold; cursor: pointer; }
         .mini-card { width: 45px; height: 65px; line-height: 65px; font-size: 16px; cursor: default; }
         .red { color: #d32f2f !important; }
         .player-card { border: 1px solid rgba(255,255,255,0.2); padding: 10px; margin: 5px; border-radius: 10px; display: inline-block; min-width: 90px; }
-        .active-turn { background: gold; color: black; border-color: gold; box-shadow: 0 0 15px gold; }
+        .active-turn { background: gold; color: black; box-shadow: 0 0 15px gold; }
         .out { opacity: 0.3; text-decoration: line-through; }
-        .token { color: gold; font-size: 20px; }
-        .btn { padding: 15px 25px; margin: 5px; cursor: pointer; border-radius: 8px; border: none; font-weight: bold; }
-        #ace-modal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; color: black; padding: 20px; border-radius: 15px; z-index: 300; box-shadow: 0 0 50px rgba(0,0,0,0.5); }
+        .btn { padding: 15px 25px; margin: 10px; cursor: pointer; border-radius: 8px; border: none; font-weight: bold; font-size: 16px; }
+        #ace-modal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; color: black; padding: 20px; border-radius: 15px; z-index: 300; }
     </style>
 </head>
 <body>
 
-<audio id="buzzer" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg"></audio>
-
 <div id="login">
-    <h1>99 Game - Select Player</h1>
+    <h1>99 Game</h1>
+    <button id="toggle-btn" class="btn" style="background: #388e3c; color: white;" onclick="togglePlayerCount()">Mode: 3 Players</button>
+    <hr style="opacity:0.2; width: 80%;">
     <button class="btn" onclick="login('Aleigha')">Aleigha</button><br>
     <button class="btn" onclick="login('Mommy')">Mommy</button><br>
-    <button class="btn" onclick="login('Daddy')">Daddy</button>
+    <div id="daddy-btn-container">
+        <button class="btn" onclick="login('Daddy')">Daddy</button>
+    </div>
 </div>
 
 <div id="ace-modal">
@@ -45,85 +41,58 @@
 
 <div id="game-ui" style="display:none;">
     <div id="display-area">
-        <div id="last-card-box" style="text-align: center;">
-            <div style="font-size: 10px; margin-bottom: 5px;">LAST</div>
+        <div id="last-card-box">
             <div id="last-card-ui"></div>
         </div>
         <h1 id="total-display" style="font-size: 90px; margin: 0;">0</h1>
     </div>
-
-    <h2 id="msg" style="height: 30px;">...</h2>
+    <h2 id="msg">...</h2>
     <div id="players-row"></div>
-    <hr style="opacity: 0.2; margin: 20px;">
-    <h3>Your Hand (<span id="my-name-label"></span>)</h3>
-    <div id="hand-display"></div>
-    <br><br>
+    <div id="hand-display" style="margin-top: 20px;"></div>
+    <br>
     <button class="btn" onclick="nextRound()" style="background: #388e3c; color: white;">Next Round</button>
-    <button class="btn" onclick="newSeason()" style="background: #d32f2f; color: white;">Reset Tokens</button>
+    <button class="btn" onclick="newSeason()" style="background: #d32f2f; color: white;">Reset Game</button>
 </div>
 
 <script>
     let myName = "";
-    let lastTokens = {};
+    let playerMode = 3;
     let pendingAceIndex = null;
 
-    function isRed(cardStr) { return cardStr.includes('♥') || cardStr.includes('♦'); }
+    function togglePlayerCount() {
+        playerMode = (playerMode === 3) ? 2 : 3;
+        document.getElementById('toggle-btn').innerText = `Mode: ${playerMode} Players`;
+        document.getElementById('daddy-btn-container').style.display = (playerMode === 2) ? 'none' : 'block';
+        fetch(`/set-mode?mode=${playerMode}`, { method: 'POST' });
+    }
 
     function login(name) {
         myName = name;
         document.getElementById('login').style.display = 'none';
         document.getElementById('game-ui').style.display = 'block';
-        document.getElementById('my-name-label').innerText = name;
         updateUI();
     }
 
     async function updateUI() {
         if (!myName) return;
-        try {
-            const res = await fetch(`/status?user=${myName}`);
-            const data = await res.json();
-            
-            data.players.forEach(p => {
-                if (lastTokens[p.name] !== undefined && p.tokens < lastTokens[p.name]) {
-                    document.getElementById('buzzer').play();
-                }
-                lastTokens[p.name] = p.tokens;
-            });
+        const res = await fetch('/status');
+        const data = await res.json();
+        
+        document.getElementById('total-display').innerText = data.currentTotal;
+        const current = data.players[data.currentIndex];
+        document.getElementById('msg').innerText = data.roundOver ? "Round Over!" : (current.name === myName ? "YOUR TURN!" : `${current.name}'s Turn`);
 
-            document.getElementById('total-display').innerText = data.currentTotal;
+        document.getElementById('players-row').innerHTML = data.players.filter(p => (data.playerMode === 3 || p.name !== "Daddy")).map((p, i) => `
+            <div class="player-card ${p.name === current.name ? 'active-turn' : ''} ${p.tokens <= 0 ? 'out' : ''}">
+                <b>${p.name}</b><br>Tokens: ${p.tokens}
+            </div>
+        `).join('');
 
-            if (data.lastCard) {
-                const redClass = isRed(data.lastCard.display) ? 'red' : '';
-                document.getElementById('last-card-ui').innerHTML = `
-                    <div class="card mini-card ${redClass}">${data.lastCard.display}</div>
-                    <div style="font-size: 10px; margin-top: 2px;">${data.lastCard.playedBy}</div>
-                `;
-            } else {
-                document.getElementById('last-card-ui').innerHTML = `<div class="card mini-card" style="opacity: 0.1;">-</div>`;
-            }
-
-            const current = data.players[data.currentIndex];
-            if (data.roundOver) {
-                const winner = data.players.find(p => p.active);
-                document.getElementById('msg').innerText = winner ? `Winner: ${winner.name}!` : "Round Over!";
-            } else {
-                document.getElementById('msg').innerText = (current.name === myName) ? "YOUR TURN!" : `${current.name}'s Turn`;
-            }
-
-            document.getElementById('players-row').innerHTML = data.players.map((p, i) => `
-                <div class="player-card ${i === data.currentIndex ? 'active-turn' : ''} ${!p.active ? 'out' : ''}">
-                    <b>${p.name}</b><br>
-                    <span class="token">${"●".repeat(p.tokens)}</span>
-                </div>
-            `).join('');
-
-            const me = data.players.find(p => p.name === myName);
-            document.getElementById('hand-display').innerHTML = me.hand.map((c, i) => {
-                const redClass = isRed(c.display) ? 'red' : '';
-                const isAce = c.name === 'A';
-                return `<div class="card ${redClass}" onclick="${isAce ? `showAceModal(${i})` : `play(${i})`}">${c.display || '?'}</div>`;
-            }).join('');
-        } catch (e) { console.error("Refresh error"); }
+        const me = data.players.find(p => p.name === myName);
+        document.getElementById('hand-display').innerHTML = me.hand.map((c, i) => `
+            <div class="card ${c.display.includes('♥') || c.display.includes('♦') ? 'red' : ''}" 
+                 onclick="${c.name === 'A' ? `showAceModal(${i})` : `play(${i})`}">${c.display}</div>
+        `).join('');
     }
 
     function showAceModal(idx) { pendingAceIndex = idx; document.getElementById('ace-modal').style.display = 'block'; }
@@ -139,7 +108,7 @@
     }
 
     async function nextRound() { await fetch('/reset', { method: 'POST' }); updateUI(); }
-    async function newSeason() { if(confirm("Reset all tokens?")) { await fetch('/new-season', { method: 'POST' }); updateUI(); } }
+    async function newSeason() { if(confirm("Reset everything?")) { await fetch('/new-season', { method: 'POST' }); updateUI(); } }
     
     setInterval(updateUI, 2000);
 </script>
