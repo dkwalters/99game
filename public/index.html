@@ -3,23 +3,23 @@
 <head>
     <title>99 Championship</title>
     <link rel="stylesheet" href="style.css">
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 </head>
 <body>
     <div id="lobby-container">
         <div id="setup-screen">
             <h1>Who are you?</h1>
-            <button class="name-btn" onclick="join('Aleigha')">Aleigha</button>
-            <button class="name-btn" onclick="join('Mommy')">Mommy</button>
-            <button class="name-btn" onclick="join('Daddy')">Daddy</button>
-            <hr>
-            <input type="text" id="name-input" placeholder="Or Enter Guest Name">
-            <button onclick="join()">Join</button>
+            <div class="button-grid">
+                <button class="name-btn" onclick="join('Aleigha')">Aleigha</button>
+                <button class="name-btn" onclick="join('Mommy')">Mommy</button>
+                <button class="name-btn" onclick="join('Daddy')">Daddy</button>
+                <button class="name-btn" onclick="join('Conbon')">Conbon</button>
+            </div>
         </div>
         <div id="lobby-screen" style="display:none">
             <h2>Players Joined</h2>
             <ul id="player-list"></ul>
-            <button id="start-btn" onclick="start()" disabled>Start Tournament</button>
+            <button id="start-btn" class="action-btn" onclick="start()" disabled>Start Tournament</button>
         </div>
     </div>
 
