@@ -1,46 +1,16 @@
-body {
-    margin: 0; background: #0e3d11; color: white;
-    font-family: 'Segoe UI', sans-serif; height: 100vh; overflow: hidden;
-}
-
-/* Header Info */
-#last-played-container {
-    position: absolute; top: 20px; left: 20px;
-    background: rgba(0,0,0,0.5); padding: 10px; border-radius: 8px;
-    border: 1px solid gold;
-}
-
-/* Opponents Area */
-#opponent-area {
-    display: flex; justify-content: center; gap: 20px; padding-top: 20px;
-}
-.player-card {
-    background: rgba(255,255,255,0.1); padding: 10px; border-radius: 10px;
-    text-align: center; border: 2px solid transparent;
-}
-.active-turn { border-color: gold; box-shadow: 0 0 15px gold; }
-
-/* Center Score */
-#table-center {
-    position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%);
-    text-align: center;
-}
-#total-display { font-size: 8rem; margin: 0; line-height: 1; }
-
-/* The Cards */
-.card {
-    width: 80px; height: 120px; background: white; color: black;
-    border-radius: 8px; display: inline-flex; flex-direction: column;
-    justify-content: space-between; padding: 10px; margin: 5px;
-    box-sizing: border-box; font-weight: bold; cursor: pointer;
-    box-shadow: 4px 4px 10px rgba(0,0,0,0.5);
-}
+body { margin: 0; background: #0e3d11; color: white; font-family: sans-serif; height: 100vh; overflow: hidden; }
+#lobby-container { background: white; color: #333; padding: 20px; border-radius: 15px; width: 300px; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; }
+.name-btn { width: 100%; padding: 12px; margin: 5px 0; background: #2e7d32; color: white; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; }
+#last-played-container { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.6); padding: 8px; border-radius: 5px; font-size: 14px; border: 1px solid #ffd700; }
+#opponent-area { display: flex; justify-content: center; gap: 10px; padding: 10px; flex-wrap: wrap; }
+.player-card { background: rgba(255,255,255,0.1); padding: 8px; border-radius: 8px; min-width: 80px; text-align: center; border: 2px solid transparent; }
+.active-turn { border-color: #ffd700; background: rgba(255,215,0,0.2); }
+#table-center { position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%); text-align: center; }
+#total-display { font-size: 6rem; margin: 0; }
+.danger { color: #ff4444; animation: pulse 0.5s infinite; }
+@keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+#player-area { position: fixed; bottom: 0; width: 100%; display: flex; flex-direction: column; align-items: center; padding-bottom: 15px; }
+.card { width: 70px; height: 105px; background: white; color: black; border-radius: 6px; display: inline-flex; flex-direction: column; justify-content: space-between; padding: 5px; margin: 4px; position: relative; box-shadow: 2px 2px 8px rgba(0,0,0,0.5); cursor: pointer; }
 .card.red { color: #d32f2f; }
-.card-suit { font-size: 2rem; align-self: center; }
-
-/* Bottom Area */
-#player-area {
-    position: fixed; bottom: 0; width: 100%;
-    background: rgba(0,0,0,0.3); padding: 20px 0;
-    display: flex; flex-direction: column; align-items: center;
-}
+.card-suit { font-size: 2.5rem; align-self: center; }
+.card-corner.bottom { transform: rotate(180deg); }
