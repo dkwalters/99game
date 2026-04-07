@@ -7,7 +7,7 @@ const path = require('path');
 app.use(express.static(path.join(__dirname, 'public')));
 
 let gameState = {
-    players: [], // { id: '', name: '', hand: [], tokens: 3 }
+    players: [], 
     deck: [],
     currentTotal: 0,
     turnIndex: 0,
@@ -25,21 +25,23 @@ function createDeck() {
 }
 
 io.on('connection', (socket) => {
-    // RECONNECT LOGIC
     socket.on('rejoin_game', (savedName) => {
         const player = gameState.players.find(p => p.name === savedName);
         if (player) {
-            player.id = socket.id; // Update to new socket ID
+            player.id = socket.id; 
             socket.emit('receive_hand', player.hand);
+            if (gameState.gameStarted) socket.emit('game_start', gameState);
+            io.emit('update_player_list', gameState.players.map(p => p.name));
             io.emit('game_update', gameState);
         }
     });
 
     socket.on('join_game', (data) => {
-        if (!gameState.gameStarted && gameState.players.length < 4) {
+        const existing = gameState.players.find(p => p.name === data.name);
+        if (!gameState.gameStarted && !existing && gameState.players.length < 4) {
             gameState.players.push({ id: socket.id, name: data.name, hand: [], tokens: 3 });
-            io.emit('update_player_list', gameState.players.map(p => p.name));
         }
+        io.emit('update_player_list', gameState.players.map(p => p.name));
     });
 
     socket.on('start_request', () => {
@@ -62,7 +64,6 @@ io.on('connection', (socket) => {
         const { card, aceValue } = data;
         gameState.lastPlayed = card;
 
-        // Logic
         if (card.value === '4') gameState.direction *= -1;
         else if (card.value === '10') gameState.currentTotal -= 10;
         else if (card.value === 'K') gameState.currentTotal = 99;
@@ -72,16 +73,12 @@ io.on('connection', (socket) => {
             gameState.currentTotal += val;
         }
 
-        // Bust Check
         if (gameState.currentTotal > 99) {
             player.tokens -= 1;
-            gameState.currentTotal = 0; // Reset after bust
-            if (player.tokens <= 0) {
-                // Handle elimination logic here if needed
-            }
+            gameState.currentTotal = 0;
+            io.emit('player_bust', { name: player.name, tokens: player.tokens });
         }
 
-        // Replenish Hand
         player.hand = player.hand.filter(c => !(c.value === card.value && c.suit === card.suit));
         if (gameState.deck.length > 0) player.hand.push(gameState.deck.shift());
         socket.emit('receive_hand', player.hand);
@@ -92,4 +89,4 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 3000;
-http.listen(PORT, () => console.log(`99 Server Live on ${PORT}`));
+http.listen(PORT, () => console.log(`Server Live on ${PORT}`));
