@@ -25,23 +25,22 @@ function createDeck() {
 }
 
 io.on('connection', (socket) => {
-    socket.on('rejoin_game', (savedName) => {
-        const player = gameState.players.find(p => p.name === savedName);
-        if (player) {
-            player.id = socket.id;
+    socket.on('join_game', (data) => {
+        let player = gameState.players.find(p => p.name === data.name);
+        if (!player) {
+            player = { id: socket.id, name: data.name, hand: [], tokens: 3 };
+            gameState.players.push(player);
+        } else {
+            player.id = socket.id; // Update ID on refresh
+        }
+
+        io.emit('update_player_list', gameState.players.map(p => p.name));
+        
+        if (gameState.gameStarted) {
+            socket.emit('game_start', gameState);
             socket.emit('receive_hand', player.hand);
-            if (gameState.gameStarted) socket.emit('game_start', gameState);
-            io.emit('update_player_list', gameState.players.map(p => p.name));
             io.emit('game_update', gameState);
         }
-    });
-
-    socket.on('join_game', (data) => {
-        const existing = gameState.players.find(p => p.name === data.name);
-        if (!gameState.gameStarted && !existing && gameState.players.length < 4) {
-            gameState.players.push({ id: socket.id, name: data.name, hand: [], tokens: 3 });
-        }
-        io.emit('update_player_list', gameState.players.map(p => p.name));
     });
 
     socket.on('start_request', () => {
@@ -64,7 +63,6 @@ io.on('connection', (socket) => {
         const { card, aceValue } = data;
         gameState.lastPlayed = card;
 
-        // Rules logic
         if (card.value === '4') gameState.direction *= -1;
         else if (card.value === '10') gameState.currentTotal -= 10;
         else if (card.value === 'K') gameState.currentTotal = 99;
@@ -82,8 +80,8 @@ io.on('connection', (socket) => {
 
         player.hand = player.hand.filter(c => !(c.value === card.value && c.suit === card.suit));
         if (gameState.deck.length > 0) player.hand.push(gameState.deck.shift());
+        
         socket.emit('receive_hand', player.hand);
-
         gameState.turnIndex = (gameState.turnIndex + gameState.direction + gameState.players.length) % gameState.players.length;
         io.emit('game_update', gameState);
     });
@@ -96,9 +94,9 @@ io.on('connection', (socket) => {
         gameState.direction = 1;
         gameState.lastPlayed = null;
         gameState.gameStarted = false;
-        io.emit('game_reset_complete', gameState);
+        io.emit('game_reset_complete');
     });
 });
 
 const PORT = process.env.PORT || 3000;
-http.listen(PORT, () => console.log(`Server Live on port ${PORT}`));
+http.listen(PORT, () => console.log(`Server running on port ${PORT}`));
