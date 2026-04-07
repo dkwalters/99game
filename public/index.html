@@ -1,20 +1,17 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>99 Multiplayer Championship</title>
+    <title>99 Multiplayer</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div id="lobby-container">
-        <h1>99 Lobby</h1>
+        <h1>99 Game Lobby</h1>
         <div id="setup-screen">
-            <input type="text" id="name-input" placeholder="Enter Name" maxlength="12">
-            <button onclick="join()">Join Game</button>
+            <input type="text" id="name-input" placeholder="Your Name" maxlength="12">
+            <button onclick="join()">Join</button>
         </div>
         <div id="lobby-screen" style="display:none">
-            <h3>Connected:</h3>
             <ul id="player-list"></ul>
             <button id="start-btn" onclick="start()" disabled>Start Game</button>
         </div>
@@ -24,7 +21,7 @@
         <div id="opponent-area"></div>
         <div id="table-center">
             <h1 id="total-display">0</h1>
-            <p id="total-label">CURRENT TOTAL</p>
+            <p>CURRENT TOTAL</p>
         </div>
         <div id="player-area">
             <h2 id="turn-indicator">Waiting...</h2>

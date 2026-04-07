@@ -1,5 +1,6 @@
 const socket = io();
 let myName = "";
+let isMyTurn = false;
 
 function join() {
     myName = document.getElementById('name-input').value.trim();
@@ -18,17 +19,14 @@ socket.on('update_player_list', (names) => {
     document.getElementById('start-btn').disabled = names.length < 2;
 });
 
+socket.on('receive_hand', (hand) => {
+    renderHand(hand);
+});
+
 socket.on('game_start', (data) => {
     document.getElementById('lobby-container').style.display = 'none';
     document.getElementById('game-board').style.display = 'block';
-    
-    const me = data.players.find(p => p.id === socket.id);
-    renderHand(me.hand);
     updateTurn(data.turn);
-
-    const others = data.players.filter(p => p.id !== socket.id);
-    document.getElementById('opponent-area').innerHTML = others.map(o => 
-        `<div class="opponent-slot"><b>${o.name}</b><br>3 Cards</div>`).join('');
 });
 
 function renderHand(hand) {
@@ -37,11 +35,18 @@ function renderHand(hand) {
     hand.forEach(card => {
         const div = document.createElement('div');
         div.className = `card ${['Hearts','Diamonds'].includes(card.suit) ? 'red' : ''}`;
-        div.innerHTML = card.value;
+        div.innerHTML = `${card.value}<br><small>${card.suit[0]}</small>`;
+        
         div.onclick = () => {
-            socket.emit('play_card', card);
-            // Optimization: Hide card immediately for responsiveness
-            div.style.visibility = 'hidden'; 
+            if (!isMyTurn) {
+                alert("It's not your turn!");
+                return;
+            }
+            let aceValue = 1;
+            if (card.value === 'A') {
+                aceValue = confirm("Play Ace as 11? (Cancel for 1)") ? 11 : 1;
+            }
+            socket.emit('play_card', { card, aceValue });
         };
         handDiv.appendChild(div);
     });
@@ -51,7 +56,6 @@ socket.on('game_update', (data) => {
     const totalDisplay = document.getElementById('total-display');
     totalDisplay.innerText = data.total;
     
-    // Red Flash Alert Logic
     if (data.total >= 90) {
         totalDisplay.classList.add('danger');
     } else {
@@ -62,8 +66,9 @@ socket.on('game_update', (data) => {
 });
 
 function updateTurn(name) {
+    isMyTurn = (name === myName);
     const indicator = document.getElementById('turn-indicator');
-    if (name === myName) {
+    if (isMyTurn) {
         indicator.innerText = "⭐ YOUR TURN ⭐";
         indicator.style.color = "#ffd700";
     } else {
