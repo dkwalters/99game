@@ -27,6 +27,11 @@ function createDeck() {
 }
 
 io.on('connection', (socket) => {
+    // Force a list update whenever a client asks or connects
+    socket.on('request_player_list', () => {
+        socket.emit('update_player_list', gameState.players.map(p => p.name));
+    });
+
     socket.on('join_game', (data) => {
         let player = gameState.players.find(p => p.name === data.name);
         if (!player) {
@@ -36,6 +41,7 @@ io.on('connection', (socket) => {
             player.id = socket.id;
         }
         io.emit('update_player_list', gameState.players.map(p => p.name));
+        
         if (gameState.gameStarted) {
             socket.emit('game_start', gameState);
             socket.emit('receive_hand', player.hand);
@@ -64,15 +70,11 @@ io.on('connection', (socket) => {
         const { card, aceValue } = data;
         gameState.lastPlayed = card;
 
-        if (card.value === '4') {
-            gameState.direction *= -1;
-        } else if (card.value === '10') {
-            gameState.currentTotal -= 10;
-        } else if (card.value === 'K') {
-            gameState.currentTotal = 99;
-        } else if (card.value === 'A') {
-            gameState.currentTotal += (aceValue || 1);
-        } else if (card.value !== '9') {
+        if (card.value === '4') gameState.direction *= -1;
+        else if (card.value === '10') gameState.currentTotal -= 10;
+        else if (card.value === 'K') gameState.currentTotal = 99;
+        else if (card.value === 'A') gameState.currentTotal += (aceValue || 1);
+        else if (card.value !== '9') {
             let val = parseInt(card.value) || 10;
             gameState.currentTotal += val;
         }
@@ -84,9 +86,8 @@ io.on('connection', (socket) => {
         }
 
         player.hand = player.hand.filter(c => !(c.value === card.value && c.suit === card.suit));
-        if (gameState.deck.length > 0) {
-            player.hand.push(gameState.deck.shift());
-        } else {
+        if (gameState.deck.length > 0) player.hand.push(gameState.deck.shift());
+        else {
             gameState.deck = createDeck();
             player.hand.push(gameState.deck.shift());
         }
@@ -111,6 +112,4 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 3000;
-http.listen(PORT, () => {
-    console.log(`99 Championship Server Live on port ${PORT}`);
-});
+http.listen(PORT, () => console.log(`Server Live on port ${PORT}`));
