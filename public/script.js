@@ -1,3 +1,12 @@
+// --- Update the top of your script.js ---
+if (myName) {
+    // If we have a name, immediately tell the server we are here
+    socket.emit('rejoin_game', myName);
+    
+    // Show the lobby while waiting for the Start button to enable
+    document.getElementById('setup-screen').style.display = 'none';
+    document.getElementById('lobby-screen').style.display = 'block';
+}
 const socket = io();
 let myName = localStorage.getItem('99_player_name') || "";
 const bustSound = new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg');
