@@ -4,11 +4,7 @@ const bustSound = new Audio('https://actions.google.com/sounds/v1/alarms/beep_sh
 
 socket.on('connect', () => {
     socket.emit('request_player_list');
-    if (myName) {
-        socket.emit('join_game', { name: myName });
-        document.getElementById('setup-screen').style.display = 'none';
-        document.getElementById('lobby-screen').style.display = 'block';
-    }
+    if (myName) socket.emit('join_game', { name: myName });
 });
 
 function join(selectedName) {
@@ -22,22 +18,26 @@ function join(selectedName) {
 function start() { socket.emit('start_request'); }
 
 function triggerReset() {
-    if (confirm("Clear all players and start over? Everyone will be sent back to the start.")) {
-        socket.emit('reset_game');
-    }
+    if (confirm("Reset everything and return to lobby?")) socket.emit('reset_game');
 }
 
 socket.on('update_player_list', (names) => {
     const list = document.getElementById('player-list');
-    if (!list) return;
-    list.innerHTML = names.map(n => `<li>${n} ${n === myName ? '(You)' : ''}</li>`).join('');
+    if (list) list.innerHTML = names.map(n => `<li>${n} ${n === myName ? '(You)' : ''}</li>`).join('');
     const btn = document.getElementById('start-btn');
     if (btn) btn.disabled = (names.length < 2);
 });
 
 socket.on('game_start', () => {
+    document.getElementById('win-overlay').style.display = 'none';
     document.getElementById('lobby-container').style.display = 'none';
     document.getElementById('game-board').style.display = 'block';
+});
+
+socket.on('game_over', (data) => {
+    const overlay = document.getElementById('win-overlay');
+    document.getElementById('winner-name').innerText = `${data.winner} WINS!`;
+    overlay.style.display = 'flex';
 });
 
 socket.on('player_bust', (data) => {
@@ -76,15 +76,17 @@ function renderGame(state) {
 
     const opArea = document.getElementById('opponent-area');
     opArea.innerHTML = state.players.map((p, idx) => `
-        <div class="player-card ${idx === state.turnIndex ? 'active-turn' : ''}">
+        <div class="player-card ${idx === state.turnIndex ? 'active-turn' : ''} ${p.tokens <= 0 ? 'eliminated' : ''}">
             <div class="p-name">${p.name}</div>
-            <div class="p-tokens">${'🟡'.repeat(p.tokens)}</div>
+            <div class="p-tokens">${p.tokens > 0 ? '🟡'.repeat(p.tokens) : '❌ OUT'}</div>
         </div>
     `).join('');
 
-    window.isMyTurn = (state.players[state.turnIndex].name === myName);
+    window.isMyTurn = (state.players[state.turnIndex].name === myName && state.players[state.turnIndex].tokens > 0);
     const indicator = document.getElementById('turn-indicator');
-    if (window.isMyTurn) {
+    if (state.winner) {
+        indicator.innerText = "GAME OVER";
+    } else if (window.isMyTurn) {
         indicator.innerText = "⭐ YOUR TURN ⭐";
         indicator.style.color = "#ffd700";
     } else {
@@ -98,3 +100,6 @@ function playCard(value, suit) {
     let aceValue = (value === 'A') ? (confirm("Use Ace as 11?") ? 11 : 1) : 1;
     socket.emit('play_card', { card: {value, suit}, aceValue });
 }
+
+function playAgain() { socket.emit('play_again'); }
+function exitToLobby() { socket.emit('reset_game'); }
