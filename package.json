@@ -1,13 +1,11 @@
 {
-  "name": "card-game-99",
+  "name": "game-99",
   "version": "1.0.0",
-  "description": "Multiplayer 99 Card Game",
-  "main": "index.js",
   "scripts": {
     "start": "node index.js"
   },
   "dependencies": {
-    "express": "^5.2.1",
-    "socket.io": "^4.8.1"
+    "express": "^4.18.2",
+    "socket.io": "^4.7.2"
   }
 }
