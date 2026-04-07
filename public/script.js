@@ -1,5 +1,6 @@
 const socket = io();
 let myName = localStorage.getItem('99_player_name') || "";
+const bustSound = new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg');
 
 if (myName) {
     socket.emit('rejoin_game', myName);
@@ -18,6 +19,12 @@ function join(nameFromBtn) {
 
 function start() { socket.emit('start_request'); }
 
+function triggerReset() {
+    if (confirm("Reset all tokens and the 99 total? This starts a brand new game.")) {
+        socket.emit('reset_game');
+    }
+}
+
 socket.on('update_player_list', (names) => {
     const list = document.getElementById('player-list');
     list.innerHTML = names.map(n => `<li>${n} ${n === myName ? '(You)' : ''}</li>`).join('');
@@ -28,6 +35,16 @@ socket.on('game_start', (state) => {
     document.getElementById('lobby-container').style.display = 'none';
     document.getElementById('game-board').style.display = 'block';
     renderGame(state);
+});
+
+socket.on('player_bust', (data) => {
+    bustSound.play();
+    alert(`${data.name} BUSTED!`);
+});
+
+socket.on('game_reset_complete', () => {
+    document.getElementById('game-board').style.display = 'none';
+    document.getElementById('lobby-container').style.display = 'block';
 });
 
 socket.on('receive_hand', (hand) => {
@@ -48,7 +65,9 @@ function renderGame(state) {
     document.getElementById('total-display').className = state.currentTotal >= 90 ? 'danger' : '';
     
     if (state.lastPlayed) {
-        document.getElementById('last-card-val').innerText = `${state.lastPlayed.value}${state.lastPlayed.suit}`;
+        const lastCardDiv = document.getElementById('last-card-visual');
+        lastCardDiv.className = `mini-card ${['♥','♦'].includes(state.lastPlayed.suit) ? 'red' : ''}`;
+        lastCardDiv.innerHTML = `<div>${state.lastPlayed.value}</div><div>${state.lastPlayed.suit}</div>`;
     }
 
     const opArea = document.getElementById('opponent-area');
