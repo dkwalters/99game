@@ -17,14 +17,20 @@
             <button onclick="join()">Join</button>
         </div>
         <div id="lobby-screen" style="display:none">
-            <h2>Players at Table</h2>
+            <h2>Players Joined</h2>
             <ul id="player-list"></ul>
             <button id="start-btn" onclick="start()" disabled>Start Tournament</button>
         </div>
     </div>
 
     <div id="game-board" style="display:none">
-        <div id="last-played-container">Last: <span id="last-card-val">-</span></div>
+        <div id="top-bar">
+            <div id="last-played-zone">
+                <span>Last:</span>
+                <div id="last-card-visual" class="mini-card"></div>
+            </div>
+            <button id="reset-game-btn" onclick="triggerReset()">Reset Game</button>
+        </div>
         <div id="opponent-area"></div>
         <div id="table-center">
             <h1 id="total-display">0</h1>
