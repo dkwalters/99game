@@ -13,21 +13,50 @@ let gameState = {
     turnIndex: 0,
     direction: 1,
     lastPlayed: null,
-    gameStarted: false
+    gameStarted: false,
+    winner: null
 };
 
 function createDeck() {
     const suits = ['♠', '♥', '♦', '♣'];
     const values = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
     let deck = [];
-    suits.forEach(s => values.forEach(v => {
-        deck.push({ suit: s, value: v });
-    }));
+    suits.forEach(s => values.forEach(v => deck.push({ suit: s, value: v })));
     return deck.sort(() => Math.random() - 0.5);
 }
 
+function dealNewRound() {
+    gameState.deck = createDeck();
+    gameState.currentTotal = 0;
+    gameState.lastPlayed = null;
+    gameState.players.forEach(p => {
+        if (p.tokens > 0) {
+            p.hand = gameState.deck.splice(0, 3);
+            io.to(p.id).emit('receive_hand', p.hand);
+        } else {
+            p.hand = [];
+            io.to(p.id).emit('receive_hand', []);
+        }
+    });
+}
+
+function checkWinner() {
+    const activePlayers = gameState.players.filter(p => p.tokens > 0);
+    if (activePlayers.length === 1) {
+        gameState.winner = activePlayers[0].name;
+        io.emit('game_over', { winner: gameState.winner });
+    }
+}
+
+function nextTurn() {
+    let attempts = 0;
+    do {
+        gameState.turnIndex = (gameState.turnIndex + gameState.direction + gameState.players.length) % gameState.players.length;
+        attempts++;
+    } while (gameState.players[gameState.turnIndex].tokens <= 0 && attempts < gameState.players.length);
+}
+
 io.on('connection', (socket) => {
-    // Force a list update whenever a client asks or connects
     socket.on('request_player_list', () => {
         socket.emit('update_player_list', gameState.players.map(p => p.name));
     });
@@ -41,29 +70,21 @@ io.on('connection', (socket) => {
             player.id = socket.id;
         }
         io.emit('update_player_list', gameState.players.map(p => p.name));
-        
-        if (gameState.gameStarted) {
-            socket.emit('game_start', gameState);
-            socket.emit('receive_hand', player.hand);
-            io.emit('game_update', gameState);
-        }
     });
 
     socket.on('start_request', () => {
         if (gameState.players.length >= 2) {
             gameState.gameStarted = true;
-            gameState.currentTotal = 0;
-            gameState.deck = createDeck();
-            gameState.players.forEach(p => {
-                p.hand = gameState.deck.splice(0, 3);
-                io.to(p.id).emit('receive_hand', p.hand);
-            });
+            gameState.winner = null;
+            gameState.players.forEach(p => p.tokens = 3);
+            dealNewRound();
             io.emit('game_start', gameState);
             io.emit('game_update', gameState);
         }
     });
 
     socket.on('play_card', (data) => {
+        if (gameState.winner) return;
         const player = gameState.players.find(p => p.id === socket.id);
         if (!player || gameState.players[gameState.turnIndex].id !== socket.id) return;
 
@@ -81,35 +102,32 @@ io.on('connection', (socket) => {
 
         if (gameState.currentTotal > 99) {
             player.tokens -= 1;
-            gameState.currentTotal = 0;
             io.emit('player_bust', { name: player.name, tokens: player.tokens });
-        }
-
-        player.hand = player.hand.filter(c => !(c.value === card.value && c.suit === card.suit));
-        if (gameState.deck.length > 0) player.hand.push(gameState.deck.shift());
-        else {
-            gameState.deck = createDeck();
-            player.hand.push(gameState.deck.shift());
+            if (player.tokens <= 0) checkWinner();
+            if (!gameState.winner) dealNewRound();
+        } else {
+            player.hand = player.hand.filter(c => !(c.value === card.value && c.suit === card.suit));
+            if (gameState.deck.length > 0) player.hand.push(gameState.deck.shift());
+            socket.emit('receive_hand', player.hand);
+            nextTurn();
         }
         
-        socket.emit('receive_hand', player.hand);
-        gameState.turnIndex = (gameState.turnIndex + gameState.direction + gameState.players.length) % gameState.players.length;
+        io.emit('game_update', gameState);
+    });
+
+    socket.on('play_again', () => {
+        gameState.winner = null;
+        gameState.players.forEach(p => p.tokens = 3);
+        dealNewRound();
+        io.emit('game_start', gameState);
         io.emit('game_update', gameState);
     });
 
     socket.on('reset_game', () => {
-        gameState = {
-            players: [], 
-            deck: [],
-            currentTotal: 0,
-            turnIndex: 0,
-            direction: 1,
-            lastPlayed: null,
-            gameStarted: false
-        };
+        gameState = { players: [], deck: [], currentTotal: 0, turnIndex: 0, direction: 1, lastPlayed: null, gameStarted: false, winner: null };
         io.emit('game_reset_complete');
     });
 });
 
 const PORT = process.env.PORT || 3000;
-http.listen(PORT, () => console.log(`Server Live on port ${PORT}`));
+http.listen(PORT, () => console.log(`99 Server Running...`));
