@@ -6,15 +6,18 @@ const path = require('path');
 
 app.use(express.static(path.join(__dirname, 'public')));
 
-let players = []; 
-let gameStarted = false;
-let currentTotal = 0;
-let turnIndex = 0;
-let direction = 1; 
-let gameDeck = [];
+let gameState = {
+    players: [], // { id: '', name: '', hand: [], tokens: 3 }
+    deck: [],
+    currentTotal: 0,
+    turnIndex: 0,
+    direction: 1,
+    lastPlayed: null,
+    gameStarted: false
+};
 
 function createDeck() {
-    const suits = ['Hearts', 'Diamonds', 'Clubs', 'Spades'];
+    const suits = ['♠', '♥', '♦', '♣'];
     const values = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
     let deck = [];
     suits.forEach(s => values.forEach(v => deck.push({ suit: s, value: v })));
@@ -22,81 +25,71 @@ function createDeck() {
 }
 
 io.on('connection', (socket) => {
+    // RECONNECT LOGIC
+    socket.on('rejoin_game', (savedName) => {
+        const player = gameState.players.find(p => p.name === savedName);
+        if (player) {
+            player.id = socket.id; // Update to new socket ID
+            socket.emit('receive_hand', player.hand);
+            io.emit('game_update', gameState);
+        }
+    });
+
     socket.on('join_game', (data) => {
-        if (!gameStarted && players.length < 4) {
-            players.push({ id: socket.id, name: data.name, hand: [] });
-            io.emit('update_player_list', players.map(p => p.name));
+        if (!gameState.gameStarted && gameState.players.length < 4) {
+            gameState.players.push({ id: socket.id, name: data.name, hand: [], tokens: 3 });
+            io.emit('update_player_list', gameState.players.map(p => p.name));
         }
     });
 
     socket.on('start_request', () => {
-        if (players.length >= 2) {
-            gameStarted = true;
-            currentTotal = 0;
-            direction = 1;
-            turnIndex = 0;
-            gameDeck = createDeck();
-            
-            players.forEach(p => {
-                p.hand = gameDeck.splice(0, 3);
+        if (gameState.players.length >= 2) {
+            gameState.gameStarted = true;
+            gameState.currentTotal = 0;
+            gameState.deck = createDeck();
+            gameState.players.forEach(p => {
+                p.hand = gameState.deck.splice(0, 3);
                 io.to(p.id).emit('receive_hand', p.hand);
             });
-
-            io.emit('game_start', { 
-                playerNames: players.map(p => p.name), 
-                turn: players[turnIndex].name 
-            });
+            io.emit('game_start', gameState);
         }
     });
 
     socket.on('play_card', (data) => {
-        const { card, aceValue } = data;
-        const player = players.find(p => p.id === socket.id);
-        
-        if (!player || players[turnIndex].id !== socket.id) return;
+        const player = gameState.players.find(p => p.id === socket.id);
+        if (!player || gameState.players[gameState.turnIndex].id !== socket.id) return;
 
-        // 1. Remove played card & Draw new card
-        player.hand = player.hand.filter(c => !(c.value === card.value && c.suit === card.suit));
-        if (gameDeck.length > 0) {
-            player.hand.push(gameDeck.shift());
+        const { card, aceValue } = data;
+        gameState.lastPlayed = card;
+
+        // Logic
+        if (card.value === '4') gameState.direction *= -1;
+        else if (card.value === '10') gameState.currentTotal -= 10;
+        else if (card.value === 'K') gameState.currentTotal = 99;
+        else if (card.value === 'A') gameState.currentTotal += (aceValue || 1);
+        else if (card.value !== '9') {
+            let val = parseInt(card.value) || 10;
+            gameState.currentTotal += val;
         }
+
+        // Bust Check
+        if (gameState.currentTotal > 99) {
+            player.tokens -= 1;
+            gameState.currentTotal = 0; // Reset after bust
+            if (player.tokens <= 0) {
+                // Handle elimination logic here if needed
+            }
+        }
+
+        // Replenish Hand
+        player.hand = player.hand.filter(c => !(c.value === card.value && c.suit === card.suit));
+        if (gameState.deck.length > 0) player.hand.push(gameState.deck.shift());
         socket.emit('receive_hand', player.hand);
 
-        // 2. 99 Rules Logic
-        if (card.value === '4') {
-            direction *= -1;
-        } else if (card.value === '9') {
-            // Stay/Pass (0)
-        } else if (card.value === '10') {
-            currentTotal -= 10;
-        } else if (card.value === 'K') {
-            currentTotal = 99;
-        } else if (card.value === 'A') {
-            currentTotal += (aceValue === 11 ? 11 : 1);
-        } else {
-            let val = parseInt(card.value) || 10;
-            currentTotal += val;
-        }
-
-        if (currentTotal < 0) currentTotal = 0;
-
-        // 3. Update Turn
-        turnIndex = (turnIndex + direction + players.length) % players.length;
-        
-        io.emit('game_update', { 
-            total: currentTotal, 
-            nextTurn: players[turnIndex].name,
-            lastPlayed: card,
-            deckRemaining: gameDeck.length
-        });
-    });
-
-    socket.on('disconnect', () => {
-        players = players.filter(p => p.id !== socket.id);
-        io.emit('update_player_list', players.map(p => p.name));
-        if (players.length === 0) gameStarted = false;
+        gameState.turnIndex = (gameState.turnIndex + gameState.direction + gameState.players.length) % gameState.players.length;
+        io.emit('game_update', gameState);
     });
 });
 
 const PORT = process.env.PORT || 3000;
-http.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+http.listen(PORT, () => console.log(`99 Server Live on ${PORT}`));
