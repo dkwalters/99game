@@ -1,11 +1,13 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
     <title>99 Championship</title>
     <link rel="stylesheet" href="style.css">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 </head>
 <body>
+
     <div id="win-overlay" style="display:none">
         <div id="win-content">
             <h1 id="winner-name">WINNER!</h1>
@@ -34,6 +36,7 @@
     </div>
 
     <div id="game-board" style="display:none">
+        
         <div id="top-bar">
             <div id="last-played-zone">
                 <span>Last:</span>
@@ -41,16 +44,23 @@
             </div>
             <button id="reset-game-btn" onclick="triggerReset()">Reset Tournament</button>
         </div>
-        <div id="opponent-area"></div>
+
+        <div id="opponent-area">
+            </div>
+
         <div id="table-center">
             <h1 id="total-display">0</h1>
             <p>TOTAL</p>
         </div>
+
         <div id="player-area">
             <h2 id="turn-indicator"></h2>
-            <div id="player-hand"></div>
+            <div id="player-hand">
+                </div>
         </div>
+
     </div>
+
     <script src="/socket.io/socket.io.js"></script>
     <script src="script.js"></script>
 </body>
