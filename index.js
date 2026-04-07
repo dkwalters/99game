@@ -87,15 +87,19 @@ io.on('connection', (socket) => {
     });
 
     socket.on('reset_game', () => {
-        gameState.players.forEach(p => { p.hand = []; p.tokens = 3; });
-        gameState.currentTotal = 0;
-        gameState.deck = [];
-        gameState.turnIndex = 0;
-        gameState.direction = 1;
-        gameState.lastPlayed = null;
-        gameState.gameStarted = false;
-        io.emit('game_reset_complete');
-    });
+    // Completely empty the player list and reset everything
+    gameState = {
+        players: [], 
+        deck: [],
+        currentTotal: 0,
+        turnIndex: 0,
+        direction: 1,
+        lastPlayed: null,
+        gameStarted: false
+    };
+    
+    // Tell everyone to clear their local memory and go back to the start
+    io.emit('game_reset_complete');
 });
 
 const PORT = process.env.PORT || 3000;
