@@ -103,6 +103,10 @@ io.on('connection', (socket) => {
         if (gameState.currentTotal > 99) {
             player.tokens -= 1;
             io.emit('player_bust', { name: player.name, tokens: player.tokens });
+            
+            // Advance turn before checking winner/dealing to ensure turnIndex is valid
+            nextTurn();
+
             if (player.tokens <= 0) checkWinner();
             if (!gameState.winner) dealNewRound();
         } else {
