@@ -10,7 +10,7 @@ let players = [];
 let gameStarted = false;
 let currentTotal = 0;
 let turnIndex = 0;
-let direction = 1; // 1 for forward, -1 for reverse
+let direction = 1; // 1 = Forward, -1 = Reverse
 
 function createDeck() {
     const suits = ['Hearts', 'Diamonds', 'Clubs', 'Spades'];
@@ -38,9 +38,9 @@ io.on('connection', (socket) => {
     });
 
     socket.on('play_card', (card) => {
-        // Logic for "99" rules
+        // "99" Specific Logic
         if (card.value === '4') {
-            direction *= -1; // Reverse logic
+            direction *= -1; 
         } else if (card.value === '10') {
             currentTotal -= 10;
         } else if (card.value === 'K') {
@@ -50,8 +50,12 @@ io.on('connection', (socket) => {
             currentTotal += val;
         }
 
-        // Move to next player
+        // Clamp total so it doesn't go below 0
+        if (currentTotal < 0) currentTotal = 0;
+
+        // Move Turn
         turnIndex = (turnIndex + direction + players.length) % players.length;
+        
         io.emit('game_update', { 
             total: currentTotal, 
             nextTurn: players[turnIndex].name,
@@ -62,7 +66,12 @@ io.on('connection', (socket) => {
     socket.on('disconnect', () => {
         players = players.filter(p => p.id !== socket.id);
         io.emit('update_player_list', players.map(p => p.name));
-        if (players.length === 0) { gameStarted = false; currentTotal = 0; }
+        if (players.length === 0) { 
+            gameStarted = false; 
+            currentTotal = 0; 
+            direction = 1;
+            turnIndex = 0;
+        }
     });
 });
 
