@@ -1,34 +1,40 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>99 Multiplayer</title>
+    <title>99 Championship</title>
     <link rel="stylesheet" href="style.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 </head>
 <body>
     <div id="lobby-container">
-        <h1>99 Game Lobby</h1>
         <div id="setup-screen">
-            <input type="text" id="name-input" placeholder="Your Name" maxlength="12">
+            <h1>Who are you?</h1>
+            <button class="name-btn" onclick="join('Aleigha')">Aleigha</button>
+            <button class="name-btn" onclick="join('Mommy')">Mommy</button>
+            <button class="name-btn" onclick="join('Daddy')">Daddy</button>
+            <hr>
+            <input type="text" id="name-input" placeholder="Or Enter Guest Name">
             <button onclick="join()">Join</button>
         </div>
         <div id="lobby-screen" style="display:none">
+            <h2>Players at Table</h2>
             <ul id="player-list"></ul>
-            <button id="start-btn" onclick="start()" disabled>Start Game</button>
+            <button id="start-btn" onclick="start()" disabled>Start Tournament</button>
         </div>
     </div>
 
     <div id="game-board" style="display:none">
+        <div id="last-played-container">Last: <span id="last-card-val">-</span></div>
         <div id="opponent-area"></div>
         <div id="table-center">
             <h1 id="total-display">0</h1>
-            <p>CURRENT TOTAL</p>
+            <p>TOTAL</p>
         </div>
         <div id="player-area">
-            <h2 id="turn-indicator">Waiting...</h2>
+            <h2 id="turn-indicator"></h2>
             <div id="player-hand"></div>
         </div>
     </div>
-
     <script src="/socket.io/socket.io.js"></script>
     <script src="script.js"></script>
 </body>
