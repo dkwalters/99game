@@ -1,25 +1,15 @@
-// --- Update the top of your script.js ---
-if (myName) {
-    // If we have a name, immediately tell the server we are here
-    socket.emit('rejoin_game', myName);
-    
-    // Show the lobby while waiting for the Start button to enable
-    document.getElementById('setup-screen').style.display = 'none';
-    document.getElementById('lobby-screen').style.display = 'block';
-}
 const socket = io();
 let myName = localStorage.getItem('99_player_name') || "";
 const bustSound = new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg');
 
 if (myName) {
-    socket.emit('rejoin_game', myName);
+    socket.emit('join_game', { name: myName });
     document.getElementById('setup-screen').style.display = 'none';
     document.getElementById('lobby-screen').style.display = 'block';
 }
 
-function join(nameFromBtn) {
-    myName = nameFromBtn || document.getElementById('name-input').value;
-    if (!myName) return;
+function join(selectedName) {
+    myName = selectedName;
     localStorage.setItem('99_player_name', myName);
     socket.emit('join_game', { name: myName });
     document.getElementById('setup-screen').style.display = 'none';
@@ -37,13 +27,13 @@ function triggerReset() {
 socket.on('update_player_list', (names) => {
     const list = document.getElementById('player-list');
     list.innerHTML = names.map(n => `<li>${n} ${n === myName ? '(You)' : ''}</li>`).join('');
-    document.getElementById('start-btn').disabled = names.length < 2;
+    const btn = document.getElementById('start-btn');
+    if (btn) btn.disabled = names.length < 2;
 });
 
-socket.on('game_start', (state) => {
+socket.on('game_start', () => {
     document.getElementById('lobby-container').style.display = 'none';
     document.getElementById('game-board').style.display = 'block';
-    renderGame(state);
 });
 
 socket.on('player_bust', (data) => {
@@ -70,8 +60,9 @@ socket.on('receive_hand', (hand) => {
 socket.on('game_update', renderGame);
 
 function renderGame(state) {
-    document.getElementById('total-display').innerText = state.currentTotal;
-    document.getElementById('total-display').className = state.currentTotal >= 90 ? 'danger' : '';
+    const totalDiv = document.getElementById('total-display');
+    totalDiv.innerText = state.currentTotal;
+    totalDiv.className = state.currentTotal >= 90 ? 'danger' : '';
     
     if (state.lastPlayed) {
         const lastCardDiv = document.getElementById('last-card-visual');
@@ -87,8 +78,8 @@ function renderGame(state) {
         </div>
     `).join('');
 
-    window.isMyTurn = state.players[state.turnIndex].name === myName;
-    document.getElementById('turn-indicator').innerText = window.isMyTurn ? "YOUR TURN" : `${state.players[state.turnIndex].name}'s Turn`;
+    window.isMyTurn = (state.players[state.turnIndex].name === myName);
+    document.getElementById('turn-indicator').innerText = window.isMyTurn ? "⭐ YOUR TURN ⭐" : `${state.players[state.turnIndex].name}'s Turn`;
 }
 
 function playCard(value, suit) {
