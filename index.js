@@ -28,7 +28,7 @@ io.on('connection', (socket) => {
     socket.on('rejoin_game', (savedName) => {
         const player = gameState.players.find(p => p.name === savedName);
         if (player) {
-            player.id = socket.id; 
+            player.id = socket.id;
             socket.emit('receive_hand', player.hand);
             if (gameState.gameStarted) socket.emit('game_start', gameState);
             io.emit('update_player_list', gameState.players.map(p => p.name));
@@ -64,6 +64,7 @@ io.on('connection', (socket) => {
         const { card, aceValue } = data;
         gameState.lastPlayed = card;
 
+        // Rules logic
         if (card.value === '4') gameState.direction *= -1;
         else if (card.value === '10') gameState.currentTotal -= 10;
         else if (card.value === 'K') gameState.currentTotal = 99;
@@ -86,7 +87,18 @@ io.on('connection', (socket) => {
         gameState.turnIndex = (gameState.turnIndex + gameState.direction + gameState.players.length) % gameState.players.length;
         io.emit('game_update', gameState);
     });
+
+    socket.on('reset_game', () => {
+        gameState.players.forEach(p => { p.hand = []; p.tokens = 3; });
+        gameState.currentTotal = 0;
+        gameState.deck = [];
+        gameState.turnIndex = 0;
+        gameState.direction = 1;
+        gameState.lastPlayed = null;
+        gameState.gameStarted = false;
+        io.emit('game_reset_complete', gameState);
+    });
 });
 
 const PORT = process.env.PORT || 3000;
-http.listen(PORT, () => console.log(`Server Live on ${PORT}`));
+http.listen(PORT, () => console.log(`Server Live on port ${PORT}`));
