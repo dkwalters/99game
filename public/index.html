@@ -6,6 +6,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 </head>
 <body>
+    <div id="win-overlay" style="display:none">
+        <div id="win-content">
+            <h1 id="winner-name">WINNER!</h1>
+            <button class="action-btn" onclick="playAgain()">Play Again</button>
+            <button id="exit-btn" onclick="exitToLobby()">Exit to Lobby</button>
+        </div>
+    </div>
+
     <div id="lobby-container">
         <div id="setup-screen">
             <h1>Who are you?</h1>
