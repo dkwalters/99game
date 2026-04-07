@@ -7,7 +7,7 @@ const path = require('path');
 app.use(express.static(path.join(__dirname, 'public')));
 
 let gameState = {
-    players: [], 
+    players: [], // { id: '', name: '', hand: [], tokens: 3 }
     deck: [],
     currentTotal: 0,
     turnIndex: 0,
@@ -25,17 +25,23 @@ function createDeck() {
 }
 
 io.on('connection', (socket) => {
+    // --- JOIN / REJOIN LOGIC ---
     socket.on('join_game', (data) => {
         let player = gameState.players.find(p => p.name === data.name);
+        
         if (!player) {
+            // New player joining for the first time
             player = { id: socket.id, name: data.name, hand: [], tokens: 3 };
             gameState.players.push(player);
         } else {
-            player.id = socket.id; // Update ID on refresh
+            // Player refreshing their browser - update their socket ID
+            player.id = socket.id;
         }
 
+        // Inform everyone of the updated lobby
         io.emit('update_player_list', gameState.players.map(p => p.name));
         
+        // If they refreshed mid-game, send them back into the action
         if (gameState.gameStarted) {
             socket.emit('game_start', gameState);
             socket.emit('receive_hand', player.hand);
@@ -43,64 +49,33 @@ io.on('connection', (socket) => {
         }
     });
 
+    // --- START GAME LOGIC ---
     socket.on('start_request', () => {
         if (gameState.players.length >= 2) {
             gameState.gameStarted = true;
             gameState.currentTotal = 0;
             gameState.deck = createDeck();
+            
+            // Deal 3 cards to each player
             gameState.players.forEach(p => {
                 p.hand = gameState.deck.splice(0, 3);
                 io.to(p.id).emit('receive_hand', p.hand);
             });
+            
             io.emit('game_start', gameState);
+            io.emit('game_update', gameState);
         }
     });
 
+    // --- PLAY CARD LOGIC ---
     socket.on('play_card', (data) => {
         const player = gameState.players.find(p => p.id === socket.id);
+        
+        // Security check: only allow play if it's actually their turn
         if (!player || gameState.players[gameState.turnIndex].id !== socket.id) return;
 
         const { card, aceValue } = data;
         gameState.lastPlayed = card;
 
-        if (card.value === '4') gameState.direction *= -1;
-        else if (card.value === '10') gameState.currentTotal -= 10;
-        else if (card.value === 'K') gameState.currentTotal = 99;
-        else if (card.value === 'A') gameState.currentTotal += (aceValue || 1);
-        else if (card.value !== '9') {
-            let val = parseInt(card.value) || 10;
-            gameState.currentTotal += val;
-        }
-
-        if (gameState.currentTotal > 99) {
-            player.tokens -= 1;
-            gameState.currentTotal = 0;
-            io.emit('player_bust', { name: player.name, tokens: player.tokens });
-        }
-
-        player.hand = player.hand.filter(c => !(c.value === card.value && c.suit === card.suit));
-        if (gameState.deck.length > 0) player.hand.push(gameState.deck.shift());
-        
-        socket.emit('receive_hand', player.hand);
-        gameState.turnIndex = (gameState.turnIndex + gameState.direction + gameState.players.length) % gameState.players.length;
-        io.emit('game_update', gameState);
-    });
-
-    socket.on('reset_game', () => {
-    // Completely empty the player list and reset everything
-    gameState = {
-        players: [], 
-        deck: [],
-        currentTotal: 0,
-        turnIndex: 0,
-        direction: 1,
-        lastPlayed: null,
-        gameStarted: false
-    };
-    
-    // Tell everyone to clear their local memory and go back to the start
-    io.emit('game_reset_complete');
-});
-
-const PORT = process.env.PORT || 3000;
-http.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+        // 99 Rules Application
+        if (card.
