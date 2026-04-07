@@ -75,4 +75,9 @@ io.on('connection', (socket) => {
     });
 });
 
-http.listen(3001, () => console.log('Server running on http://localhost:3000'));
+// This looks for the PORT Render provides, or defaults to 3000 for local testing
+const PORT = process.env.PORT || 3000;
+
+http.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
+});
