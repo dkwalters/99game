@@ -1,78 +1,54 @@
 const socket = io();
-let myName = "";
-let isMyTurn = false;
+let myName = localStorage.getItem('99_name') || "";
 
-function join() {
-    myName = document.getElementById('name-input').value.trim();
-    if(myName) {
-        socket.emit('join_game', { name: myName });
-        document.getElementById('setup-screen').style.display = 'none';
-        document.getElementById('lobby-screen').style.display = 'block';
-    }
+if (myName) {
+    socket.emit('rejoin_game', myName);
 }
 
-function start() { socket.emit('start_request'); }
+function join() {
+    myName = document.getElementById('name-input').value;
+    localStorage.setItem('99_name', myName);
+    socket.emit('join_game', { name: myName });
+    document.getElementById('setup-screen').style.display = 'none';
+    document.getElementById('lobby-screen').style.display = 'block';
+}
 
-socket.on('update_player_list', (names) => {
-    const list = document.getElementById('player-list');
-    list.innerHTML = names.map(n => `<li>${n}</li>`).join('');
-    document.getElementById('start-btn').disabled = names.length < 2;
+socket.on('game_update', (state) => {
+    // 1. Update Total
+    const display = document.getElementById('total-display');
+    display.innerText = state.currentTotal;
+    display.style.color = state.currentTotal >= 90 ? '#ff4444' : 'white';
+
+    // 2. Update Last Card
+    if (state.lastPlayed) {
+        document.getElementById('last-card-val').innerText = `${state.lastPlayed.value} ${state.lastPlayed.suit}`;
+    }
+
+    // 3. Update Players & Tokens
+    const opArea = document.getElementById('opponent-area');
+    opArea.innerHTML = state.players.map((p, idx) => `
+        <div class="player-card ${idx === state.turnIndex ? 'active-turn' : ''}">
+            <b>${p.name}</b><br>
+            Tokens: ${'🟡'.repeat(p.tokens)}
+        </div>
+    `).join('');
+
+    window.isMyTurn = state.players[state.turnIndex].name === myName;
 });
 
 socket.on('receive_hand', (hand) => {
-    renderHand(hand);
-});
-
-socket.on('game_start', (data) => {
-    document.getElementById('lobby-container').style.display = 'none';
-    document.getElementById('game-board').style.display = 'block';
-    updateTurn(data.turn);
-});
-
-function renderHand(hand) {
     const handDiv = document.getElementById('player-hand');
-    handDiv.innerHTML = '';
-    hand.forEach(card => {
-        const div = document.createElement('div');
-        div.className = `card ${['Hearts','Diamonds'].includes(card.suit) ? 'red' : ''}`;
-        div.innerHTML = `${card.value}<br><small>${card.suit[0]}</small>`;
-        
-        div.onclick = () => {
-            if (!isMyTurn) {
-                alert("It's not your turn!");
-                return;
-            }
-            let aceValue = 1;
-            if (card.value === 'A') {
-                aceValue = confirm("Play Ace as 11? (Cancel for 1)") ? 11 : 1;
-            }
-            socket.emit('play_card', { card, aceValue });
-        };
-        handDiv.appendChild(div);
-    });
-}
-
-socket.on('game_update', (data) => {
-    const totalDisplay = document.getElementById('total-display');
-    totalDisplay.innerText = data.total;
-    
-    if (data.total >= 90) {
-        totalDisplay.classList.add('danger');
-    } else {
-        totalDisplay.classList.remove('danger');
-    }
-
-    updateTurn(data.nextTurn);
+    handDiv.innerHTML = hand.map(card => `
+        <div class="card ${['♥','♦'].includes(card.suit) ? 'red' : ''}" onclick="playCard('${card.value}', '${card.suit}')">
+            <div>${card.value}</div>
+            <div class="card-suit">${card.suit}</div>
+            <div style="transform: rotate(180deg)">${card.value}</div>
+        </div>
+    `).join('');
 });
 
-function updateTurn(name) {
-    isMyTurn = (name === myName);
-    const indicator = document.getElementById('turn-indicator');
-    if (isMyTurn) {
-        indicator.innerText = "⭐ YOUR TURN ⭐";
-        indicator.style.color = "#ffd700";
-    } else {
-        indicator.innerText = `${name}'s Turn`;
-        indicator.style.color = "white";
-    }
+function playCard(value, suit) {
+    if (!window.isMyTurn) return alert("Not your turn!");
+    let aceValue = (value === 'A') ? (confirm("Use Ace as 11?") ? 11 : 1) : 1;
+    socket.emit('play_card', { card: {value, suit}, aceValue });
 }
